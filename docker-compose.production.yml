@@ -24,7 +24,7 @@ services:
   frontend:
     container_name: foodgram_frontend
     env_file: .env
-    build: slava010/frontend_frontend
+    build: slava010/foodgram_frontend
     command: cp -r /app/build/. /static/
     volumes:
       - static:/static
