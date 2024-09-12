@@ -37,7 +37,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip 
         pip install flake8==6.0.0 flake8-isort==6.0.0
-        pip install -r ./backend/foodgram/requirements.txt
+        pip install -r ./backend/requirements.txt
     # Запускаем flake8
     # Этот шаг также дополним переменными для доступа к БД
     - name: Test with flake8
