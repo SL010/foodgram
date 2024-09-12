@@ -1,16 +1,25 @@
-from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import RegexValidator, FileExtensionValidator
+from django.db import models
 
 
 class User(AbstractUser):
     """Кастомная модель пользователя."""
 
+    # USERNAME_FIELD = 'email'
+    # REQUIRED_FIELDS = ['username,', 'last_name', 'first_name']
+
     email = models.EmailField(max_length=254, unique=True)
-    username = models.CharField(max_length=150, unique=True)
+    username = models.CharField(max_length=150,
+                                unique=True,
+                                validators=[RegexValidator('^[a-zA-Z0-9]+$')])
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     avatar = models.ImageField(
-        'Аватар', upload_to='avatars/', blank=True, null=True
+        'Аватар', upload_to='avatars/', blank=True, null=True,
+        validators=[
+            FileExtensionValidator(allowed_extensions=('png', 'jpg', 'jpeg'))
+        ],
     )
 
 

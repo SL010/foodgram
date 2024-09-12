@@ -9,20 +9,20 @@ class RecipeFilter(FilterSet):
     """
 
     is_favorited = filters.BooleanFilter(method='filter_is_favorited')
-    is_in_basket = filters.BooleanFilter(
-        method='filter_is_in_basket')
+    is_in_shopping_cart = filters.BooleanFilter(
+        method='filter_is_in_shopping_cart')
     tags = filters.AllValuesMultipleFilter(field_name='tags__slug')
 
     class Meta:
         model = Recipes
-        fields = ('author', 'tags', 'is_favorited', 'is_in_basket')
+        fields = ('author', 'tags', 'is_favorited', 'is_in_shopping_cart')
 
     def filter_is_favorited(self, queryset, name, value):
         if value and self.request.user.is_authenticated:
             return queryset.filter(favorite__user=self.request.user)
         return queryset
 
-    def filter_is_in_basket(self, queryset, name, value):
+    def filter_is_in_shopping_cart(self, queryset, name, value):
         if value and self.request.user.is_authenticated:
-            return queryset.filter(basket__user=self.request.user)
+            return queryset.filter(shopping_cart__user=self.request.user)
         return queryset

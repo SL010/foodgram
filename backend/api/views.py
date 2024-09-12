@@ -2,6 +2,7 @@ from django.db.models import Sum
 from django_filters.rest_framework import DjangoFilterBackend
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from djoser.views import UserViewSet as DjoserUserViewSet
 from requests import Response
 from rest_framework import viewsets, mixins, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -9,7 +10,6 @@ from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework import filters
-from djoser.views import UserViewSet
 
 from users.models import User, UserSubscribers
 from recipes.models import (Ingredients, Tag, Recipes,
@@ -17,15 +17,13 @@ from recipes.models import (Ingredients, Tag, Recipes,
 from .filtres import RecipeFilter
 from .pagination import PageLimitPagination
 
-from .serializers import (IngredientsSerializer, PostUserSerializer,
-                          GetUserSerializer, TagSerializer,
+from .serializers import (IngredientsSerializer, TagSerializer,
                           GetRecipesSerializer, PostRecipesSerializer,
-                          AvatarSerializer, PasswordSerializer,
-                          FavoriteSerializer, SubscribeToUserSerializer,
-                          ShopBasketSerializer)
+                          AvatarSerializer, ShopBasketSerializer,
+                          FavoriteSerializer, SubscribeToUserSerializer,)
 
 
-class UserViewSet(UserViewSet):
+class UserViewSet(DjoserUserViewSet):
     """ViewSet пользователя."""
 
     queryset = User.objects.all()
@@ -36,45 +34,56 @@ class UserViewSet(UserViewSet):
             return (AllowAny(),)
         return super().get_permissions()
 
-    def get_serializer_class(self):
-        if self.request.method in SAFE_METHODS:
-            return GetUserSerializer
-        return PostUserSerializer
+    # @action(methods=['put', 'delete'], detail=False,
+    #         permission_classes=(IsAuthenticated,),
+    #         url_path='me/avatar',
+    #         url_name='me-avatar',
+    #         )
+    # def avatar(self, request):
+    #     """Добавление или удаление аватара."""
+    #     instance = self.get_instance()
+    #     if request.method == 'put':
+    #         serializer = AvatarSerializer(
+    #             instance,
+    #             data={'avatar': request.data.avatar},
+    #             #data=request.data,
+    #             partial=True)
+    #         serializer.is_valid(raise_exception=True)
+    #         serializer.save()
+    #         return Response(serializer.data)
+    #     if request.method == 'delete':
+    #         serializer = AvatarSerializer(instance, data={'avatar': None},
+    #                                       partial=True)
+    #         serializer.is_valid(raise_exception=True)
+    #         serializer.save()
+    #         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(methods=['put', 'delete'], detail=True,
-            permission_classes=(IsAuthenticated,),
-            url_path='me/avatar',
-            )
-    def avatar(self, request):
-        """Добавление или удаление аватара."""
-        instance = self.get_instance()
-        if request.method == 'put':
-            serializer = AvatarSerializer(
-                instance,
-                data={'avatar': request.data.avatar},
-                partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-        elif request.method == 'delete':
-            serializer = AvatarSerializer(instance, data={'avatar': None},
-                                          partial=True)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(methods=['post'], detail=True,
-            permission_classes=(IsAuthenticated,))
-    def set_password(self, request):
-        serializer = PasswordSerializer(data=request.data)
+    @action(
+        methods=('put',),
+        detail=False,
+        url_path='me/avatar',
+        permission_classes=(IsAuthenticated,)
+    )
+    def me_avatar(self, request):
+        serializer = AvatarSerializer(
+            instance=request.user,
+            context={'request': request},
+            data=request.data
+        )
         serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+    @me_avatar.mapping.delete
+    def delete_me_avatar(self, request):
         user = request.user
-        if user.check_password(serializer.data.get('current_password')):
-            user.set_password(serializer.data.get('new_password'))
-            user.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        return Response({'errors': 'Указан неверный пароль'},
-                        status=status.HTTP_400_BAD_REQUEST)
+        user.avatar.delete(save=True)
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
 
     @action(
         detail=True,
@@ -199,13 +208,13 @@ class RecipesViewSet(viewsets.ModelViewSet):
     @action(methods=('post', 'delete',),
             detail=True,
             permission_classes=(IsAuthenticated,))
-    def shopping_cart(self, request, pk=None):
+    def shopping_cart(self, request, pk):
         recipe = get_object_or_404(Recipes, id=pk)
         user = request.user
         object = Basket.objects.filter(user=user, recipe=recipe)
         if request.method == 'POST':
             if object.exists():
-                return Response('Рецепт добавлен в корзину',
+                return Response({'errors': 'Рецепт уже добавлен!'},
                                 status=status.HTTP_400_BAD_REQUEST)
 
             Basket.objects.create(user=user, recipe=recipe)
@@ -224,11 +233,11 @@ class RecipesViewSet(viewsets.ModelViewSet):
     def download_shopping_cart(self, request):
         user = request.user
         queryset = IngredientsInRecipe.objects.filter(
-            recipe__basket__user=user
+            recipe__shopping_cart__user=user.id
         ).values('ingredient__name', 'ingredient__measurement_unit').order_by(
             'ingredient__name', 'ingredient__measurement_unit'
         ).annotate(total_amount=Sum('amount'))
-        message = ''
+        message = f'Продукты для покупки:\n'
         for ingredient in queryset:
             message += (
                 f' - {ingredient["ingredient__name"]} '

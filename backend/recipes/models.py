@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MinValueValidator
 
 from users.models import User
 
@@ -41,7 +42,7 @@ class Recipes(models.Model):
     )
     tags = models.ManyToManyField(Tag, through='RecipeTag',)
     image = models.ImageField(
-        'Картинка', upload_to='dish/', blank=True, null=True
+        'Картинка', upload_to='dish/', blank=True, null=True,
     )
     name = models.CharField('Название', max_length=256,)
     text = models.TextField()
@@ -96,7 +97,8 @@ class IngredientsInRecipe(models.Model):
         related_name='name_recipe',
     )
     ingredient = models.ForeignKey(Ingredients, on_delete=models.CASCADE)
-    amount = models.IntegerField('Количество ингрединета в рецепте')
+    amount = models.IntegerField('Количество ингрединета в рецепте',
+                                 validators=[MinValueValidator(1)])
 
     class Meta:
         constraints = [
@@ -116,9 +118,9 @@ class Basket(models.Model):
     """Модель для хранения выбранных рецептов."""
 
     user = models.ForeignKey(User, on_delete=models.CASCADE,
-                             null=True, related_name='basket')
+                             null=True, related_name='shopping_cart')
     recipe = models.ForeignKey(Recipes, on_delete=models.CASCADE,
-                               null=True, related_name='basket')
+                               null=True, related_name='shopping_cart')
 
     class Meta:
         verbose_name = "корзина"

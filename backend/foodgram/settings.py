@@ -9,6 +9,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', default=get_random_secret_key())
 
 DEBUG = os.environ.get('DEBUG', default=False) == 'True'
+# DEBUG = True
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(', ')
 
@@ -115,6 +116,18 @@ REST_FRAMEWORK = {
 DJOSER = {
     'HIDE_USERS': False,
     'LOGIN_FIELD': 'email',
+    'SERIALIZERS': {
+        'user_create': 'api.serializers.PostUserSerializer',
+        'user': 'api.serializers.GetUserSerializer',
+        'current_user': 'api.serializers.GetUserSerializer',
+    },
+
+    'PERMISSIONS': {
+        # 'user': ['djoser.permissions.CurrentUserOrAdminOrReadOnly'],
+        # 'user_list': ['rest_framework.permissions.IsAuthenticatedOrReadOnly'],
+        'user_list': ['rest_framework.permissions.AllowAny', ],
+        'user': ['rest_framework.permissions.AllowAny', ],
+    },
 }
 
 STATIC_URL = '/static/'
@@ -127,3 +140,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'

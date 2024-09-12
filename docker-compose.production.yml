@@ -13,8 +13,8 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
   backend:
-    # container_name: foodgram_backend
-    build: ./backend
+    container_name: foodgram_backend
+    build: slava010/foodgram_backend
     env_file: .env
     volumes:
       - static:/backend_static
@@ -24,13 +24,13 @@ services:
   frontend:
     container_name: foodgram_frontend
     env_file: .env
-    build: ./frontend
+    build: slava010/frontend_frontend
     command: cp -r /app/build/. /static/
     volumes:
       - static:/static
   gateway:
     container_name: foodgram_nginx
-    build: ./nginx
+    build: slava010/foodram_nginx
     env_file: .env
     ports:
       - 8000:80
