@@ -30,10 +30,10 @@ services:
       - static:/static
   gateway:
     container_name: foodgram_nginx
-    image: slava010/foodram_nginx
+    image: slava010/foodgram_nginx
     env_file: .env
     ports:
-      - 8000:80
+      - 9090:80
     volumes:
       - static:/staticfiles/
       - media:/media/

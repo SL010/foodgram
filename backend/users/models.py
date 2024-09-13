@@ -7,7 +7,7 @@ class User(AbstractUser):
     """Кастомная модель пользователя."""
 
     # USERNAME_FIELD = 'email'
-    # REQUIRED_FIELDS = ['username,', 'last_name', 'first_name']
+    # REQUIRED_FIELDS = ['username', 'last_name', 'first_name']
 
     email = models.EmailField(max_length=254, unique=True)
     username = models.CharField(max_length=150,
