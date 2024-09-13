@@ -237,7 +237,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
         ).values('ingredient__name', 'ingredient__measurement_unit').order_by(
             'ingredient__name', 'ingredient__measurement_unit'
         ).annotate(total_amount=Sum('amount'))
-        message = f'Продукты для покупки:\n'
+        message = 'Продукты для покупки:\n'
         for ingredient in queryset:
             message += (
                 f' - {ingredient["ingredient__name"]} '
