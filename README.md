@@ -10,7 +10,7 @@ Foodgram
 Python, Django REST Framework, PostgreSQL, Nginx, gunicorn, Docker, Docker-compose, GitHub Actions,
 
 создание суперпользователя (в директории с файлом docker-compose.yml)
-docker compose exec backend \
+docker compose -f docker-compose.production.yml exec backend \
   env DJANGO_SUPERUSER_USERNAME=admin \
       DJANGO_SUPERUSER_EMAIL=admin@example.com \
       DJANGO_SUPERUSER_PASSWORD=changeme \
