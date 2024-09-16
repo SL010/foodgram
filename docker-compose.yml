@@ -13,7 +13,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
   backend:
-    # container_name: foodgram_backend
+    container_name: foodgram_backend
     build: ./backend
     env_file: .env
     volumes:
@@ -33,7 +33,7 @@ services:
     build: ./nginx
     env_file: .env
     ports:
-      - 8000:80
+      - 9090:80
     volumes:
       - static:/staticfiles/
       - media:/media/

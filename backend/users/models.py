@@ -1,26 +1,33 @@
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import RegexValidator, FileExtensionValidator
+from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.core.validators import FileExtensionValidator
 from django.db import models
+from django.db.models import Q
+
+from .constants import MAX_LENGTH_NAME, MAX_LENGTH_EMAIL
 
 
 class User(AbstractUser):
     """Кастомная модель пользователя."""
 
-    # USERNAME_FIELD = 'email'
-    # REQUIRED_FIELDS = ['username', 'last_name', 'first_name']
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
-    email = models.EmailField(max_length=254, unique=True)
-    username = models.CharField(max_length=150,
+    email = models.EmailField(max_length=MAX_LENGTH_EMAIL, unique=True)
+    username = models.CharField(max_length=MAX_LENGTH_NAME,
                                 unique=True,
-                                validators=[RegexValidator('^[a-zA-Z0-9]+$')])
-    first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
+                                validators=[UnicodeUsernameValidator()])
+    first_name = models.CharField(max_length=MAX_LENGTH_NAME)
+    last_name = models.CharField(max_length=MAX_LENGTH_NAME)
     avatar = models.ImageField(
         'Аватар', upload_to='avatars/', blank=True, null=True,
         validators=[
             FileExtensionValidator(allowed_extensions=('png', 'jpg', 'jpeg'))
         ],
     )
+
+    class Meta:
+        ordering = ('date_joined',)
 
 
 class UserSubscribers(models.Model):
@@ -45,6 +52,10 @@ class UserSubscribers(models.Model):
             models.UniqueConstraint(
                 fields=('user', 'subscriber'),
                 name='one_score'
+            ),
+            models.CheckConstraint(
+                check=~Q(user=models.F('subscriber')),
+                name='cannot_subscribe_self'
             )
         ]
 
