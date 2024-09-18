@@ -32,6 +32,8 @@ $docker compose -f docker-compose.production.yml exec backend \
   env DJANGO_SUPERUSER_USERNAME=admin \
       DJANGO_SUPERUSER_EMAIL=admin@example.com \
       DJANGO_SUPERUSER_PASSWORD=changeme \
+      DJANGO_SUPERUSER_FIRST_NAME=sss \
+      DJANGO_SUPERUSER_LAST_NAME=bb \
   python manage.py createsuperuser --noinput
 
 
