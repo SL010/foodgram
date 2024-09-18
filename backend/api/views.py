@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework.response import Response
 from rest_framework import viewsets, mixins, status
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS
@@ -13,14 +13,14 @@ from rest_framework import filters
 
 from users.models import User, UserSubscribers
 from recipes.models import (Ingredients, Tag, Recipes, IngredientsInRecipe)
-from .filtres import RecipeFilter
+from .filtres import RecipeFilter, IngredientsFilter
 from .pagination import PageLimitPagination
 
 from .serializers import (IngredientsSerializer, TagSerializer,
                           GetRecipesSerializer, PostRecipesSerializer,
                           AvatarSerializer, ShopBasketSerializer,
                           FavoriteSerializer, SubscribeToUserSerializer,
-                          CreateSubsribeSerializer)
+                          CreateSubsribeSerializer, GetUserSerializer)
 
 
 class UserViewSet(DjoserUserViewSet):
@@ -28,11 +28,19 @@ class UserViewSet(DjoserUserViewSet):
 
     queryset = User.objects.all()
     pagination_class = PageLimitPagination
+    serializer_class = GetUserSerializer
 
-    def get_permissions(self):
-        if self.action in ('list', 'retrieve'):
-            return (AllowAny(),)
-        return super().get_permissions()
+    @action(
+        methods=('get',),
+        detail=False,
+        permission_classes=(IsAuthenticated,)
+    )
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
 
     @action(
         methods=('put',),
@@ -82,15 +90,13 @@ class UserViewSet(DjoserUserViewSet):
     @subscribe.mapping.delete
     def delete_subscribe(self, request, id=None):
         subscriber = get_object_or_404(User, pk=id)
-        try:
-            obj = get_object_or_404(
-                UserSubscribers,
-                user=request.user,
-                subscriber=subscriber)
-        except Exception:
+        obj = UserSubscribers.objects.filter(
+            user=request.user,
+            subscriber=subscriber).delete()
+
+        if obj[0] == 0:
             return Response({'Вы не подписаны на данного пользователя'},
                             status=status.HTTP_400_BAD_REQUEST)
-        obj.delete()
         return Response(None, status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['get'],
@@ -124,7 +130,7 @@ class IngredientsViewSet(mixins.RetrieveModelMixin,
     serializer_class = IngredientsSerializer
     pagination_class = None
     filter_backends = (filters.SearchFilter,)
-    search_fields = ('^name',)
+    filterset_class = IngredientsFilter
 
 
 class RecipesViewSet(viewsets.ModelViewSet):
@@ -149,7 +155,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
         recipe = get_object_or_404(Recipes, id=pk)
         short_link = request.build_absolute_uri(f'/s/{recipe.short_link}/')
         data = {'short-link': short_link}
-        return Response(data['short-link'])
+        return Response(data)
 
     def favorite_shopping_cart_add_or_delete(self, serializer, pk, request):
         user = request.user
@@ -169,13 +175,12 @@ class RecipesViewSet(viewsets.ModelViewSet):
             object = serializer.Meta.model.objects.filter(
                 user=user,
                 recipe=recipe
-            )
-            if object.exists():
-                object.delete()
-                return Response(status=status.HTTP_204_NO_CONTENT)
-            return Response(
-                'Рецепт отсутствует', status=status.HTTP_400_BAD_REQUEST
-            )
+            ).delete()
+            if object[0] == 0:
+                return Response(
+                    'Рецепт отсутствует', status=status.HTTP_400_BAD_REQUEST
+                )
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(methods=('post', 'delete',),
             detail=True,

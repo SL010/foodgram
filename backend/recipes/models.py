@@ -1,11 +1,11 @@
 import uuid
 
-from django.core.validators import MinValueValidator, RegexValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 from .constants import (MAX_LENGTH_NAME_RECIPE,
                         MAX_LENGTH_NAME_INGREDIENT, MAX_LENGTH_LINK,
-                        MAX_UNIT, MAX_LENGTH_TAG, MIN_VALUE)
+                        MAX_UNIT, MAX_LENGTH_TAG, MIN_VALUE, MAX_VALUE)
 from users.models import User
 
 
@@ -17,7 +17,6 @@ class Tag(models.Model):
                             unique=True)
     slug = models.SlugField(max_length=MAX_LENGTH_TAG,
                             unique=True,
-                            validators=[RegexValidator(regex='^[a-zA-Z0-9]+$')]
                             )
 
     class Meta:
@@ -61,7 +60,7 @@ class Recipes(models.Model):
         through='IngredientsInRecipe',
         verbose_name='Ингридиенты',
     )
-    tags = models.ManyToManyField(Tag, through='RecipeTag',)
+    tags = models.ManyToManyField(Tag)
     image = models.ImageField(
         'Картинка', upload_to='dish/', blank=True, null=True,
     )
@@ -69,7 +68,10 @@ class Recipes(models.Model):
     text = models.TextField()
     cooking_time = models.PositiveSmallIntegerField(
         'Время приготовления',
-        validators=[MinValueValidator(MIN_VALUE)]
+        validators=[
+            MinValueValidator(MIN_VALUE),
+            MaxValueValidator(MAX_VALUE)
+        ]
     )
     short_link = models.CharField(
         'Сокращенная ссылка',
@@ -105,26 +107,6 @@ class Recipes(models.Model):
         return self.name[:30]
 
 
-class RecipeTag(models.Model):
-    """Модель для реализции связи многие ко многим тега и рецептов."""
-
-    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
-    recipe = models.ForeignKey(Recipes, on_delete=models.CASCADE)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=('tag', 'recipe'),
-                name='unique_tag_recipe'
-            )
-        ]
-        verbose_name = "тег к рецепту"
-        verbose_name_plural = "теги к рецепту"
-
-    def __str__(self):
-        return f'{self.recipe} с тегом {self.tag}'
-
-
 class IngredientsInRecipe(models.Model):
     """Модель для хранения количества ингредиентов в рецепте."""
 
@@ -136,7 +118,11 @@ class IngredientsInRecipe(models.Model):
     ingredient = models.ForeignKey(Ingredients, on_delete=models.CASCADE)
     amount = models.PositiveSmallIntegerField(
         'Количество ингрединета в рецепте',
-        validators=[MinValueValidator(MIN_VALUE)])
+        validators=[
+            MinValueValidator(MIN_VALUE),
+            MaxValueValidator(MAX_VALUE)
+        ]
+    )
 
     class Meta:
         constraints = [

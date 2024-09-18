@@ -1,8 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.db.transaction import atomic
-from django.forms import ValidationError
-from djoser.serializers import UserCreateSerializer, UserSerializer
+from djoser.serializers import UserSerializer
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+from rest_framework.validators import UniqueTogetherValidator
 
 from recipes.models import (Ingredients, Tag, Recipes,
                             IngredientsInRecipe, Favorite, Basket)
@@ -10,15 +11,6 @@ from users.models import UserSubscribers
 from .fields import Base64ImageField
 
 User = get_user_model()
-
-
-class PostUserSerializer(UserCreateSerializer):
-    """Сериализатор для создания пользователя."""
-
-    class Meta:
-        model = User
-        fields = (
-            'username', 'first_name', 'last_name', 'email', 'password',)
 
 
 class GetUserSerializer(UserSerializer):
@@ -35,11 +27,13 @@ class GetUserSerializer(UserSerializer):
 
     def get_is_subscribed(self, obj):
         request = self.context.get('request')
-        return (request
-                and request.user.is_authenticated
-                and UserSubscribers.objects.filter(
-                    user=request.user,
-                    subscriber=obj.id).exists())
+        return bool(
+            request
+            and request.user.is_authenticated
+            and UserSubscribers.objects.filter(
+                user=request.user,
+                subscriber=obj.id).exists()
+        )
 
 
 class AvatarSerializer(serializers.ModelSerializer):
@@ -146,29 +140,26 @@ class PostRecipesSerializer(serializers.ModelSerializer):
         )
 
     def validate_ingredients(self, value):
-        if not value:
-            raise ValidationError(
-                'Добавьте ингридиенты'
-            )
+        ingredients_list = [ingredient.get('id')
+                            for ingredient in value]
+        if len(ingredients_list) != len(set(ingredients_list)):
+            raise ValidationError('Ингредиенты не должны повторяться!')
         return value
 
     def validate_tags(self, value):
-        if not value:
-            raise ValidationError(
-                'Добавьте тег'
-            )
+        tags_list = [tag for tag in value]
+        if len(set(tags_list)) != len(tags_list):
+            raise serializers.ValidationError('Теги не должны повторяться!.')
         return value
 
     def validate(self, data):
         ingredients = data.get('ingredients', [])
-        ingredients_list = [ingredient.get('id')
-                            for ingredient in ingredients
-                            if 'id' in ingredient]
-        if len(ingredients_list) != len(set(ingredients_list)):
-            raise ValidationError('Ингредиенты не должны повторяться!')
+        if not ingredients:
+            raise ValidationError('Добавьте хотя бы один ингредиент.')
+
         tags = data.get('tags', [])
-        if len(set(tags)) != len(tags):
-            raise serializers.ValidationError('Теги не должны повторяться!.')
+        if not tags:
+            raise ValidationError('Добавьте хотя бы один тег.')
         return data
 
     def create_ingredient(self, ingredients, recipe):
@@ -200,13 +191,8 @@ class PostRecipesSerializer(serializers.ModelSerializer):
         tags = validated_data.pop('tags', None)
         instance.tags.clear()
         instance.ingredients.clear()
-        cooking_time = validated_data.get('cooking_time')
-        if cooking_time is not None:
-            instance.cooking_time = cooking_time
-        if tags is not None:
-            instance.tags.set(tags)
-        if ingredients is not None:
-            self.create_ingredient(recipe=instance, ingredients=ingredients)
+        instance.tags.set(tags)
+        self.create_ingredient(recipe=instance, ingredients=ingredients)
         return super().update(instance, validated_data)
 
     def to_representation(self, instance):
@@ -241,13 +227,13 @@ class FavoriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favorite
         fields = ('user', 'recipe')
-
-    def create(self, validated_data):
-        user = self.context['request'].user
-        recipe = validated_data.get('recipe')
-        if Favorite.objects.filter(user=user, recipe=recipe).exists():
-            raise ValidationError('Этот рецепт уже добавлен в избранное.')
-        return Favorite.objects.create(user=user, recipe=recipe)
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Favorite.objects.all(),
+                fields=['user', 'recipe'],
+                message='Этот рецепт уже добавлен в избранное.'
+            )
+        ]
 
     def to_representation(self, instance):
         context = {'request': self.context.get('request')}
@@ -260,13 +246,13 @@ class ShopBasketSerializer(FavoriteSerializer):
     class Meta:
         model = Basket
         fields = ('user', 'recipe')
-
-    def create(self, validated_data):
-        user = self.context['request'].user
-        recipe = validated_data.get('recipe')
-        if Basket.objects.filter(user=user, recipe=recipe).exists():
-            raise ValidationError('Этот рецепт уже добавлен в корзину.')
-        return Basket.objects.create(user=user, recipe=recipe)
+        validators = [
+            UniqueTogetherValidator(
+                queryset=Basket.objects.all(),
+                fields=['user', 'recipe'],
+                message='Этот рецепт уже добавлен в корзину.'
+            )
+        ]
 
     def to_representation(self, instance):
         context = {'request': self.context.get('request')}
@@ -309,17 +295,22 @@ class CreateSubsribeSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserSubscribers
         fields = ('user', 'subscriber')
+        validators = [
+            UniqueTogetherValidator(
+                queryset=UserSubscribers.objects.all(),
+                fields=['user', 'subscriber'],
+                message='Вы уже подписаны на данного пользователя.'
+            )
+        ]
 
     def validate(self, data):
         if data['user'] == data['subscriber']:
             raise serializers.ValidationError(
                 'Нельзя подписаться сам на себя'
             )
-        if UserSubscribers.objects.filter(
-            user=data['user'],
-            subscriber=data['subscriber']
-        ).exists():
-            raise serializers.ValidationError(
-                'Вы уже подписаны на данного пользователя'
-            )
         return data
+
+    def to_representation(self, instance):
+        return SubscribeToUserSerializer(
+            instance.subscriber,
+            context=self.context).data

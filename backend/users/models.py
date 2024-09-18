@@ -11,7 +11,7 @@ class User(AbstractUser):
     """Кастомная модель пользователя."""
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
 
     email = models.EmailField(max_length=MAX_LENGTH_EMAIL, unique=True)
     username = models.CharField(max_length=MAX_LENGTH_NAME,
@@ -28,6 +28,8 @@ class User(AbstractUser):
 
     class Meta:
         ordering = ('date_joined',)
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
 
 
 class UserSubscribers(models.Model):
@@ -47,7 +49,8 @@ class UserSubscribers(models.Model):
     )
 
     class Meta:
-        verbose_name = 'Подписки'
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'
         constraints = [
             models.UniqueConstraint(
                 fields=('user', 'subscriber'),
