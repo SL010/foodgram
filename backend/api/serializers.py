@@ -101,13 +101,14 @@ class GetRecipesSerializer(serializers.ModelSerializer):
 
     def get_is_favorited(self, object):
         request = self.context.get('request')
-        return (request and request.user.is_authenticated
-                and object.favorite.filter(user=request.user).exists())
+        return bool(request and request.user.is_authenticated
+                    and object.favorite.filter(user=request.user).exists())
 
     def get_is_in_shopping_cart(self, object):
         request = self.context.get('request')
-        return (request and request.user.is_authenticated
-                and request.user.shopping_cart.filter(recipe=object).exists())
+        return bool(
+            request and request.user.is_authenticated
+            and request.user.shopping_cart.filter(recipe=object).exists())
 
 
 class AmountIngredientsInRecipeSerializer(serializers.ModelSerializer):
@@ -138,6 +139,10 @@ class PostRecipesSerializer(serializers.ModelSerializer):
             'name', 'image', 'text',
             'cooking_time',
         )
+
+    def validate_image(self, value):
+        if not value:
+            raise ValidationError('Добавьте картинку!')
 
     def validate_ingredients(self, value):
         ingredients_list = [ingredient.get('id')
@@ -203,8 +208,6 @@ class PostRecipesSerializer(serializers.ModelSerializer):
 
 class ShortLinkSerializer(serializers.ModelSerializer):
     """Сериализатор для полчения короткой ссылки."""
-
-    # short_link = serializers.CharField()
 
     class Meta:
         model = Recipes

@@ -9,12 +9,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import GenericViewSet
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS
-from rest_framework import filters
 
 from users.models import User, UserSubscribers
 from recipes.models import (Ingredients, Tag, Recipes, IngredientsInRecipe)
 from .filtres import RecipeFilter, IngredientsFilter
 from .pagination import PageLimitPagination
+from .permissions import AuthorOrReadOnly
 
 from .serializers import (IngredientsSerializer, TagSerializer,
                           GetRecipesSerializer, PostRecipesSerializer,
@@ -129,7 +129,7 @@ class IngredientsViewSet(mixins.RetrieveModelMixin,
     queryset = Ingredients.objects.all()
     serializer_class = IngredientsSerializer
     pagination_class = None
-    filter_backends = (filters.SearchFilter,)
+    filter_backends = (DjangoFilterBackend,)
     filterset_class = IngredientsFilter
 
 
@@ -140,6 +140,7 @@ class RecipesViewSet(viewsets.ModelViewSet):
     pagination_class = PageLimitPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
+    permission_classes = (AuthorOrReadOnly,)
 
     def get_serializer_class(self):
         if self.request.method in SAFE_METHODS:
