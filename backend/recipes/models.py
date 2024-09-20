@@ -16,8 +16,7 @@ class Tag(models.Model):
                             max_length=MAX_LENGTH_TAG,
                             unique=True)
     slug = models.SlugField(max_length=MAX_LENGTH_TAG,
-                            unique=True,
-                            )
+                            unique=True)
 
     class Meta:
         verbose_name = 'Тег'

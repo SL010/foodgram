@@ -143,6 +143,7 @@ class PostRecipesSerializer(serializers.ModelSerializer):
     def validate_image(self, value):
         if not value:
             raise ValidationError('Добавьте картинку!')
+        return value
 
     def validate_ingredients(self, value):
         ingredients_list = [ingredient.get('id')
